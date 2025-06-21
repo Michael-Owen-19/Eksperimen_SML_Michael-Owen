@@ -27,8 +27,8 @@ jobs:
       run: |
         git config --global user.name "Michael Owen"
         git config --global user.email "owen190401@gmail.com"
-        git remote set-url origin https://x-access-token:${{ secrets.PAT }}@github.com/Michael-Owen-19/Eksperimen_SML_Michael-Owen.git
+        git remote set-url origin https://x-access-token:${{ secrets.TOKEN }}@github.com/Michael-Owen-19/Eksperimen_SML_Michael-Owen.git
         git add .
-        git commit -m "Add preprocessed dataset"
+        git commit -m "Add/Update preprocessed dataset"
         git push
       continue-on-error: true  # Avoid error if nothing changed
