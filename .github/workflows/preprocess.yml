@@ -27,7 +27,7 @@ jobs:
       run: |
         git config --global user.name "Michael Owen"
         git config --global user.email "owen190401@gmail.com"
-        git add processed/
+        git add .
         git commit -m "Add preprocessed dataset"
         git push
       continue-on-error: true  # Avoid error if nothing changed
