@@ -8,61 +8,40 @@ from sklearn.impute import SimpleImputer
 from joblib import dump
 import os
 
-def mark_0_as_nan(X):
-        X = X.copy()
-        X[(X == 0) | (pd.isna(X))] = np.nan
-        return X
-
 def preprocess_data(data, target_column, save_path, file_path):
-    # Copy data to avoid modifying original
     data = data.copy()
 
-    # === Step 4 & 5: Replace missing values for ca and thalach with 0 and cast to int ===
     if 'ca' in data.columns:
         data['ca'] = data['ca'].fillna(0).astype(int)
     if 'thalach' in data.columns:
         data['thalach'] = data['thalach'].fillna(0).astype(int)
 
-    # Save column names (excluding target) as CSV header
     feature_columns = data.columns.drop(target_column)
     pd.DataFrame(columns=feature_columns).to_csv(file_path, index=False)
     print(f"Nama kolom berhasil disimpan ke: {file_path}")
 
-    # Identify numeric and categorical columns
-    numeric_features = data[feature_columns].select_dtypes(include=['int64', 'float64']).columns.tolist()
+    int_numeric_features = data[feature_columns].select_dtypes(include=['int64']).columns.tolist()
+    float_numeric_features = data[feature_columns].select_dtypes(include=['float64']).columns.tolist()
     categorical_features = data[feature_columns].select_dtypes(include=['object']).columns.tolist()
 
-    # === Step 2 & 3: Custom imputers for trestbps and chol (treat both NaN and 0 as missing) ===
+    int_numeric_transformer = Pipeline(steps=[
+        ('imputer', SimpleImputer(strategy='most_frequent')),
+        ('scaler', StandardScaler())
+    ])
 
-    special_numeric_imputer = Pipeline(steps=[
-        ('zero_to_nan', FunctionTransformer(mark_0_as_nan, validate=False)),
+    float_numeric_transformer = Pipeline(steps=[
         ('imputer', SimpleImputer(strategy='mean')),
         ('scaler', StandardScaler())
     ])
 
-    # Separate special columns
-    special_numeric_features = []
-    for col in ['trestbps', 'chol']:
-        if col in numeric_features:
-            special_numeric_features.append(col)
-            numeric_features.remove(col)
-
-    # Normal numeric pipeline
-    normal_numeric_transformer = Pipeline(steps=[
-        ('imputer', SimpleImputer(strategy='mean')),
-        ('scaler', StandardScaler())
-    ])
-
-    # Categorical pipeline
     categorical_transformer = Pipeline(steps=[
         ('imputer', SimpleImputer(strategy='most_frequent')),
         ('encoder', OneHotEncoder(handle_unknown='ignore'))
     ])
 
-    # Column transformer combining all
     preprocessor = ColumnTransformer(transformers=[
-        ('num_normal', normal_numeric_transformer, numeric_features),
-        ('num_special', special_numeric_imputer, special_numeric_features),
+        ('num_int', int_numeric_transformer, int_numeric_features),
+        ('num_float', float_numeric_transformer, float_numeric_features),
         ('cat', categorical_transformer, categorical_features)
     ])
 
@@ -72,11 +51,9 @@ def preprocess_data(data, target_column, save_path, file_path):
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-    # Fit-transform and transform
     X_train = preprocessor.fit_transform(X_train)
     X_test = preprocessor.transform(X_test)
 
-    # Save pipeline
     dump(preprocessor, save_path)
 
     return X_train, X_test, y_train, y_test
@@ -92,8 +69,25 @@ if not os.path.exists(dataset_folder_path):
 preprocess_data_path = os.path.join(script_dir, 'dataset_preprocessing', 'preprocessor_pipeline.joblib')
 header_file_path = os.path.join(script_dir, 'dataset_preprocessing', 'header_data.csv')
 file_path = os.path.join(script_dir, '..', 'dataset', 'heart_disease_uci_raw.csv')
+X_train_path = os.path.join(script_dir, 'dataset_preprocessing', 'X_train.joblib')
+X_test_path = os.path.join(script_dir, 'dataset_preprocessing', 'X_test.joblib')
+y_train_path = os.path.join(script_dir, 'dataset_preprocessing', 'y_train.joblib')
+y_test_path = os.path.join(script_dir, 'dataset_preprocessing', 'y_test.joblib')
+X_train_csv_path = os.path.join(script_dir, 'dataset_preprocessing', 'X_train.csv')
+X_test_csv_path = os.path.join(script_dir, 'dataset_preprocessing', 'X_test.csv')
+y_train_csv_path = os.path.join(script_dir, 'dataset_preprocessing', 'y_train.csv')
+y_test_csv_path = os.path.join(script_dir, 'dataset_preprocessing', 'y_test.csv')
+
 df = pd.read_csv(file_path)
 df = df.drop(columns=['id'])
 
+df['ca'] = df['ca'].astype('Int64')
+df['thalach'] = df['thalach'].astype('Int64')
+
 X_train, X_test, y_train, y_test = preprocess_data(df, target_column, preprocess_data_path, header_file_path)
 print(X_train[2])
+pd.DataFrame(X_train).to_csv(X_train_csv_path, index=False)
+pd.DataFrame(X_test).to_csv(X_test_csv_path, index=False)
+pd.DataFrame(y_train).to_csv(y_train_csv_path, index=False)
+pd.DataFrame(y_test).to_csv(y_test_csv_path, index=False)
+print("Preprocessing completed and files saved successfully.")
